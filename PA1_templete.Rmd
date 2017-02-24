@@ -1,0 +1,115 @@
+---
+title: "PA1_templete"
+author: "Eric Hung"
+date: "2017¦~2¤ë23¤é"
+output: html_document
+---
+#This is the assignment of Reproducible Research Week2
+
+To start the assignment, library dplyr package first.
+
+```{r warning=FALSE,message=FALSE}
+library(dplyr)
+library(ggplot2)
+Sys.setlocale("LC_TIME", "English")
+```
+
+
+1:Code for reading in the dataset and/or processing the data. 
+  
+```{r echo=TRUE}
+setwd("C:/Users/Eric/Documents/R/Homework/Reproducible_week2")
+download.file("https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2Factivity.zip",destfile = "data.zip")
+unzip(zipfile = "data.zip")
+temp.data <-read.csv(file = "activity.csv",header = TRUE,stringsAsFactors = FALSE)
+
+```
+
+2.Histogram of the total number of steps taken each day
+
+```{r}
+step.perday <- select(temp.data,c(steps,date)) %>% filter(steps!="NA") %>% group_by(date) %>% summarise(sum(steps))
+
+hist(step.perday$`sum(steps)`,breaks = 30,col = "red", main = "Histogram of Step per Day",xlab = "Step per Day")
+
+```
+
+3.Mean and median number of steps taken each day
+
+```{r}
+
+m.perday <- select(temp.data,c(steps,date)) %>% filter(steps!="NA") %>% group_by(date) %>% summarise(mean(steps),median(steps))
+
+names(m.perday)<- c("DATE","Mean step per day","Median step perday")
+
+print(m.perday,n=53)
+
+```
+
+4.Time series plot of the average number of steps taken in each time interval
+```{r}
+time.data <- select(temp.data,c(steps,interval)) %>% filter(steps != "NA") %>% group_by(interval) %>% summarise(mean(steps))
+
+plot(time.data$interval,time.data$`mean(steps)`,type="l",xlab = "Time Interval(every 5 mins)",ylab = "Average Number of Steps",main = "Time Series of Average Steps A Day",col="red")
+
+```
+
+5.The 5-minute interval that, on average, contains the maximum number of steps
+
+```{r}
+max.step.interval <-as.integer(subset(time.data,time.data$`mean(steps)`==max(time.data$`mean(steps)`))[,1])
+
+```
+
+The interval `r max.step.interval` contains the maximum number of steps
+
+6.Code to describe and show a strategy for imputing missing data
+
+```{r}
+n.na <- nrow(temp.data[is.na(temp.data$steps),])
+
+```
+There are total `r n.na` NAs in the raw data
+
+To imputting missing value, a average steps of each interval is used. As I believe a person's behavior is almost the same for every day.
+
+```{r}
+c.data <-temp.data
+index <-which(is.na(c.data$steps))
+c.data[index,1]<-time.data[match(c.data[index,3],time.data$interval),2] #to impute the missing value
+
+```
+
+7.Histogram of the total number of steps taken each day after missing values are imputed
+
+```{r}
+hc.data<-select(c.data,c(steps,date)) %>% group_by(date) %>% summarise(sum(steps))
+hist(hc.data$`sum(steps)`,breaks = 30,col = "red", main = "Histogram of Step per Day Without Missing Value",xlab = "Step per Day")
+
+```
+
+Calculating the mean abd median of steps per day with missing value imputted
+
+```{r}
+mhc.data<-select(c.data,c(steps,date)) %>% group_by(date) %>% summarise(mean(steps),median(steps))
+names(mhc.data)<- c("DATE","Mean step per day","Median step perday")
+print(mhc.data,n=nrow(mhc.data))
+
+```
+
+8.Panel plot comparing the average number of steps taken per 5-minute interval across weekdays and weekends
+
+```{r cache=FALSE}
+
+weekc.data<-c.data
+weekc.data$w1<-weekdays(as.Date(weekc.data$date))
+
+weekc.data$wday<-factor(weekc.data$w1 %in% c("Monday","Tuesday","Wednesday","Thursday","Friday"),levels = c(TRUE,FALSE),labels = c("Weekday","Weekend"))
+
+df8<-select(weekc.data,c(steps,interval,wday)) %>% group_by(interval,wday) %>% summarise(mean(steps))
+
+names(df8) <-c("interval","wday","step")
+g <-ggplot(data=df8,aes(interval,step,color=wday))
+g+geom_line()+facet_wrap(~wday,ncol=1)
+```
+
